@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/mEnableGps"
+        android:icon="@android:drawable/ic_menu_compass"
+        android:title="@string/menu_enable_gps"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/mEnableNetwork"
+        android:icon="@android:drawable/ic_menu_mylocation"
+        android:title="@string/menu_enable_network"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/mDisableLocation"
+        android:icon="@android:drawable/ic_menu_close_clear_cancel"
+        android:title="@string/menu_disable_location"
+        android:visible="false"
+        app:showAsAction="always" />
+</menu>
