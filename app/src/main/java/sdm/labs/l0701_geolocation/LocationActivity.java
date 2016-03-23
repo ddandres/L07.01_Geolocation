@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2016. David de Andrés and Juan Carlos Ruiz, DISCA - UPV, Development of apps for mobile devices.
+ */
+
 package sdm.labs.l0701_geolocation;
 
 import android.Manifest;
@@ -22,7 +26,6 @@ import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -38,8 +41,6 @@ import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.LocationSettingsRequest;
 import com.google.android.gms.location.LocationSettingsResult;
 
-import org.w3c.dom.Text;
-
 import java.io.IOException;
 import java.util.List;
 
@@ -53,8 +54,8 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
 
     // Constants defining the location framework to be used
     public static final int ANDROID_LOCATION_FRAMEWORK = 0;
-    public static final int GOOGLE_LOCATION = 1;
-    int locationSystem;
+    public static final int GOOGLE_LOCATION_API = 1;
+    int selectedLocationFramework;
 
     // Constant defining that permission were requested to remove location updates
     private static final int REMOVE_LOCATION_UPDATES_PERMISSION = 2;
@@ -62,14 +63,14 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
 
     // Hold references required for the Android Location Framework
     LocationManager locationManager = null;
-    MyAndroidFrameworkLocationListener androidframeworkLocationListener;
+    MyAndroidFrameworkLocationListener androidFrameworkLocationListener;
 
     // Hold references required for Google Play Services and Google Location API
     GoogleApiClient client;
     LocationRequest request;
     MyGoogleLocationListener googleLocationListener;
 
-    // Hold reference toa Geocoder to translated coordinates into human readable addresses
+    // Hold reference to a Geocoder to translate coordinates into human readable addresses
     Geocoder geocoder;
 
     // Hold reference to the last permission granted
@@ -92,6 +93,8 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
         tvLongitude = (TextView) findViewById(R.id.etLongitude);
         tvLatitude = (TextView) findViewById(R.id.etLatitude);
         tvAddress = (TextView) findViewById(R.id.tvAddress);
+
+        // Initially display an "Unknown" longitude and latitude
         tvLongitude.setText(
                 String.format(getResources().getString(R.string.latitude),
                         getResources().getString(R.string.unknown)));
@@ -100,23 +103,23 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
                         getResources().getString(R.string.unknown)));
 
         // Initialize elements according to the selected location framework
-        switch (getIntent().getIntExtra("system", -1)) {
+        switch (getIntent().getIntExtra("location_framework", -1)) {
 
             // Android Location Framework
             case ANDROID_LOCATION_FRAMEWORK:
 
-                locationSystem = ANDROID_LOCATION_FRAMEWORK;
-                // Listener to receive th location udpates
-                androidframeworkLocationListener = new MyAndroidFrameworkLocationListener();
+                selectedLocationFramework = ANDROID_LOCATION_FRAMEWORK;
+                // Listener to receive location updates
+                androidFrameworkLocationListener = new MyAndroidFrameworkLocationListener();
                 // LocationManager giving access to the location services
                 locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
                 break;
 
             // Google Location Framework
-            case GOOGLE_LOCATION:
+            case GOOGLE_LOCATION_API:
 
-                locationSystem = GOOGLE_LOCATION;
-                // Listener to receive th location udpates
+                selectedLocationFramework = GOOGLE_LOCATION_API;
+                // Listener to receive location updates
                 googleLocationListener = new MyGoogleLocationListener();
                 // Initialize GoogleApiClient fro LocationServices API
                 client = new GoogleApiClient.Builder(this)
@@ -136,26 +139,39 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
      */
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.menu_location, menu);
-        // Determine whether the GoogleApiClient is connected when using the Google Location Framework
-        boolean clientConnected = (locationSystem != GOOGLE_LOCATION) || client.isConnected();
 
+        getMenuInflater().inflate(R.menu.menu_location, menu);
+
+        // Determine whether the GoogleApiClient is connected when using the Google Location Framework
+        boolean clientConnected = (selectedLocationFramework != GOOGLE_LOCATION_API) || client.isConnected();
+        // Display the actions to enable or disable location updates
         menu.findItem(R.id.mEnableGps).setVisible(displayEnableLocation && clientConnected);
         menu.findItem(R.id.mEnableNetwork).setVisible(displayEnableLocation && clientConnected);
         menu.findItem(R.id.mDisableLocation).setVisible(!displayEnableLocation && clientConnected);
+
         return true;
     }
 
+    /**
+     * This method is executed when any action from the ActionBar is selected.
+     */
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
+
+        // Determine the action to take place according to the Id of the action selected
         switch (item.getItemId()) {
 
+            // Enable precise/fine location
             case R.id.mEnableGps:
                 enableLocation(LocationRequest.PRIORITY_HIGH_ACCURACY, Manifest.permission.ACCESS_FINE_LOCATION);
                 break;
+
+            // Enable loose/coarse location
             case R.id.mEnableNetwork:
                 enableLocation(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY, Manifest.permission.ACCESS_COARSE_LOCATION);
                 break;
+
+            // Disable location updates
             case R.id.mDisableLocation:
                 disableLocation();
                 break;
@@ -163,24 +179,37 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
         return true;
     }
 
+    /**
+     * Connects the GoogleApiClient, when using the Google Location API, whenever the activity starts.
+     */
     @Override
     protected void onStart() {
         super.onStart();
-        if (locationSystem == GOOGLE_LOCATION) {
+        if (selectedLocationFramework == GOOGLE_LOCATION_API) {
             client.connect();
         }
     }
 
+    /**
+     * Disables the location updates (if enabled) and disconnects the GoogleApiClient
+     * (when using the Google Location API), whenever the activity stops.
+     */
     @Override
     protected void onStop() {
         super.onStop();
-        switch (locationSystem) {
+
+        // Check the location framework in use
+        switch (selectedLocationFramework) {
+
+            // Android Location Framework
             case ANDROID_LOCATION_FRAMEWORK:
                 if ((locationManager != null) && (permissionGranted != null)) {
                     disableLocation();
                 }
                 break;
-            case GOOGLE_LOCATION:
+
+            // Google Location API
+            case GOOGLE_LOCATION_API:
                 if (permissionGranted != null) {
                     disableLocation();
                 }
@@ -189,54 +218,95 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
         }
     }
 
+    /**
+     * Tries to enable location updates for the selected location framework.
+     *
+     * @param priority   Determines the priority when selecting the location provider.
+     * @param permission Permission required to request updates from the selected location provider.
+     */
     private void enableLocation(int priority, String permission) {
-        switch (locationSystem) {
+
+        switch (selectedLocationFramework) {
+
+            // Android Location Framework
             case ANDROID_LOCATION_FRAMEWORK:
                 enableAndroidLocationFramework(priority, permission);
                 break;
-            case GOOGLE_LOCATION:
+
+            // Google Location API
+            case GOOGLE_LOCATION_API:
                 enableGoogleLocation(priority, permission);
                 break;
         }
 
     }
 
+
+    /**
+     * Tries to enable location updates for the Android Location Framework.
+     *
+     * @param priority   Determines the priority when selecting the location provider.
+     * @param permission Permission required to request updates from the selected location provider.
+     */
     private void enableAndroidLocationFramework(int priority, String permission) {
+        // Check for permissions
         checkLocationPermissions(priority, permission);
     }
 
+    /**
+     * Tries to enable location updates for the Android Location Framework.
+     *
+     * @param priority   Determines the priority when selecting the location provider.
+     * @param permission Permission required to request updates from the selected location provider.
+     */
     private void enableGoogleLocation(final int priority, final String permission) {
+
+        // Perform the whole procedure only if the GoogleCApiClient is connected
         if (client.isConnected()) {
+
+            // Create a new request for updates each 10s (each 5s at most)
             request = new LocationRequest();
             request.setPriority(priority);
             request.setInterval(10000);
             request.setFastestInterval(5000);
 
+            // Object specifying the type of location services the user is interested in
             LocationSettingsRequest.Builder builder =
                     new LocationSettingsRequest.Builder()
                             .addLocationRequest(request);
 
+            // Check that the request location services are available
             PendingResult<LocationSettingsResult> results =
                     LocationServices.SettingsApi.checkLocationSettings(client, builder.build());
+            // Callback to receive the response from the previous check
             results.setResultCallback(new ResultCallback<LocationSettingsResult>() {
+
                 @Override
                 public void onResult(@NonNull LocationSettingsResult locationSettingsResult) {
+
+                    // Determine the course of action according to the received status code
                     switch (locationSettingsResult.getStatus().getStatusCode()) {
-                        // Location settings are satisfied, request location updates
+
+                        // Location settings are satisfied, so proceed to request location updates
                         case CommonStatusCodes.SUCCESS:
+                            // Check that the requires permissions are granted
                             checkLocationPermissions(priority, permission);
                             break;
+
                         // Location settings are not satisfied, but the user can fix them through a dialog
                         case CommonStatusCodes.RESOLUTION_REQUIRED:
                             try {
+                                // Show the user a system dialog for handling the problem
                                 locationSettingsResult.getStatus().startResolutionForResult(
                                         LocationActivity.this, priority);
                             } catch (IntentSender.SendIntentException e) {
                                 e.printStackTrace();
                             }
                             break;
+
                         // Location settings are not satisfied and the system cannot fix them
                         default:
+                            // Notify the user if this problem
                             Toast.makeText(
                                     LocationActivity.this,
                                     R.string.location_settings_not_satisfied,
@@ -245,7 +315,9 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
                     }
                 }
             });
-        } else {
+        }
+        // The GoogleApiClient is not connected, show a notification to the user
+        else {
             Toast.makeText(
                     LocationActivity.this,
                     R.string.google_client_connecting,
@@ -253,64 +325,137 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
         }
     }
 
+    /**
+     * Checks that permissions are granted for the selected location framework.
+     *
+     * @param priority   Determines the priority when selecting the location provider.
+     * @param permission Permission required to request updates from the selected location provider.
+     */
     private void checkLocationPermissions(int priority, String permission) {
         if (isLocationPermissionGranted(permission, priority)) {
             locationPermissionsGranted(priority, permission);
         }
     }
 
+    /**
+     * Checks that permissions are granted for the selected location framework.
+     *
+     * @param permission  Permission required to request updates from the selected location provider.
+     * @param requestCode Code used to later identify the request in the callback.
+     */
+    private boolean isLocationPermissionGranted(String permission, int requestCode) {
+
+        // Determine whether the user has granted that particular permission
+        if (PackageManager.PERMISSION_GRANTED == ContextCompat.checkSelfPermission(this, permission)) {
+            return true;
+        }
+        // If not, display an activity to request that permission
+        else {
+            ActivityCompat.requestPermissions(this, new String[]{permission}, requestCode);
+            return false;
+        }
+    }
+
+    /**
+     * Requests location updates for the selected location framework.
+     *
+     * @param priority   Determines the priority when selecting the location provider.
+     * @param permission Permission required to request updates from the selected location provider.
+     */
     private void locationPermissionsGranted(int priority, String permission) {
+
+        // Keep reference of the granted permission
         permissionGranted = permission;
-        switch (locationSystem) {
+
+        switch (selectedLocationFramework) {
+
+            // Android Location Framework
             case ANDROID_LOCATION_FRAMEWORK:
                 requestAndroidLocationFrameworkUpdates(priority);
                 break;
-            case GOOGLE_LOCATION:
+
+            // Google Location API
+            case GOOGLE_LOCATION_API:
                 requestGoogleLocationUpdates();
                 break;
         }
     }
 
+    /**
+     * Requests location updates for the Android Location Framework.
+     *
+     * @param priority Determines the priority when selecting the location provider.
+     */
     private void requestAndroidLocationFrameworkUpdates(int priority) {
+
+        // Determine the required location provider according to the requested priority
         String provider = (priority == LocationRequest.PRIORITY_HIGH_ACCURACY) ?
                 LocationManager.GPS_PROVIDER :
                 LocationManager.NETWORK_PROVIDER;
+        // Check whether that location provider is enabled
         if (locationManager.isProviderEnabled(provider)) {
-            locationManager.requestLocationUpdates(provider, 5000, 10, androidframeworkLocationListener);
+
+            // Request location updates each 5s with a minimum distance of 10m
+            locationManager.requestLocationUpdates(provider, 5000, 10, androidFrameworkLocationListener);
+
+            // Set to false the flag controlling whether to display the actions to enable the location udpates
             displayEnableLocation = false;
+            // Ask the system to rebuild the options of the ActionBar
             supportInvalidateOptionsMenu();
-        } else {
+        }
+        // Display a notification to the user stating that the location provider is not enabled
+        else {
             Toast.makeText(LocationActivity.this, R.string.provider_not_enabled, Toast.LENGTH_SHORT).show();
         }
     }
 
+    /**
+     * Requests location updates for the Google Location API.
+     */
     private void requestGoogleLocationUpdates() {
         LocationServices.FusedLocationApi.requestLocationUpdates(client, request, googleLocationListener);
+
+        // Set to false the flag controlling whether to display the actions to enable the location udpates
         displayEnableLocation = false;
+        // Ask the system to rebuild the options of the ActionBar
         supportInvalidateOptionsMenu();
     }
 
+    /**
+     * This callback is executed whenever an activity was started expecting a result.
+     * In this case it covers two different possibilities related to the used of Google Location API:
+     * The GoogleApiClient was not able to connect.
+     * The location settings did not match those requested by the user.
+     */
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+
+        // Check which was request has been processed
         switch (requestCode) {
+
+            // The GoogleApiClient was not able to connect
             case REQUEST_RESOLVE_ERROR:
+                // If the problem has been solved, retry the connection
                 if (resultCode == RESULT_OK) {
                     if (!client.isConnecting() && !client.isConnected()) {
                         client.connect();
                     }
                 }
                 break;
+
+            // The location settings did not match those requested by the user
             case LocationRequest.PRIORITY_HIGH_ACCURACY:
             case LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY:
+                // If the settings have been corrected, enable request updates via Google Location API
                 if (resultCode == RESULT_OK) {
-                    // Settings should have been corrected, try again
                     enableGoogleLocation(
                             requestCode,
                             (requestCode == LocationRequest.PRIORITY_HIGH_ACCURACY) ?
                                     Manifest.permission.ACCESS_FINE_LOCATION :
                                     Manifest.permission.ACCESS_COARSE_LOCATION);
-                } else {
-                    // The user has selected not to make the required changes
+                }
+                // The user has not changed the settings, so display a notification
+                else {
                     Toast.makeText(
                             LocationActivity.this,
                             R.string.location_settings_not_changed,
@@ -320,76 +465,147 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
         }
     }
 
+    /**
+     * This callback is executed whenever the GoogleApiClient fails to connect.
+     * Try to solve the problem or show an error dialog.
+     */
     @Override
     public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
+
+        // If the problem can be solved then start the required activity
         if (connectionResult.hasResolution()) {
             try {
                 connectionResult.startResolutionForResult(this, REQUEST_RESOLVE_ERROR);
             } catch (IntentSender.SendIntentException e) {
                 e.printStackTrace();
             }
-        } else {
+        }
+        // The problem cannot be directly solved, so display an error dialog
+        else {
             showErrorDialog(connectionResult.getErrorCode());
         }
     }
 
+    /**
+     * Displays an error dialog to notify that the GoogleApiClient was not able to connect and
+     * no direct solution is directly available.
+     *
+     * @param errorCode Error code obtained while trying to connect.
+     */
     private void showErrorDialog(int errorCode) {
+
+        // Custom FragmentDialog
         MyErrorDialogFragment dialog = new MyErrorDialogFragment();
+        // Include the obtained error code as an arguments
         Bundle args = new Bundle();
         args.putInt("dialog_error", errorCode);
         dialog.setArguments(args);
+        // Display the error dialog
         dialog.show(getSupportFragmentManager(), "errorDialog");
     }
 
-    private boolean isLocationPermissionGranted(String permission, int requestCode) {
-        if (PackageManager.PERMISSION_GRANTED == ContextCompat.checkSelfPermission(this, permission)) {
-            return true;
-        } else {
-            ActivityCompat.requestPermissions(this, new String[]{permission}, requestCode);
-            return false;
+    /**
+     * Creates an error dialog fragment according to the received connection error code.
+     */
+    public static class MyErrorDialogFragment extends SupportErrorDialogFragment {
+
+        public MyErrorDialogFragment() {
+        }
+
+        @Override
+        public Dialog onCreateDialog(Bundle savedInstanceState) {
+            // Get the error code passed as argument
+            int errorCode = this.getArguments().getInt("dialog_error");
+            // Create the error frgamen dialog provided by the GoogleApiAvailability
+            return GoogleApiAvailability
+                    .getInstance().getErrorDialog(this.getActivity(), errorCode, REQUEST_RESOLVE_ERROR);
         }
     }
 
+    /**
+     * This callback is executed whenever the user has been asked to grant permissions.
+     * In this case it will deal with permission to request fine/coarse location updates,
+     * and to remove any previous requested location update.
+     */
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+
+        // Check whether any permission has been granted
         if ((grantResults.length > 0) && (PackageManager.PERMISSION_GRANTED == grantResults[0])) {
+
+            // Determine the course of action according to the requested action
             switch (requestCode) {
+
+                // Get permission to access the GPS_PROVIDER
                 case LocationRequest.PRIORITY_HIGH_ACCURACY:
+                    // Request fine location updates according to the selected framework
                     locationPermissionsGranted(requestCode, Manifest.permission.ACCESS_FINE_LOCATION);
                     break;
+
+                // Get permission to access the GPS_PROVIDER
                 case LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY:
+                    // Request coarse location updates according to the selected framework
                     locationPermissionsGranted(requestCode, Manifest.permission.ACCESS_COARSE_LOCATION);
+                    break;
+
+                // Get permission to remove the requested updates from the provider in use
                 case REMOVE_LOCATION_UPDATES_PERMISSION:
-                    switch (locationSystem) {
+
+                    // Stop receiving location updates according to the selected location framework
+                    switch (selectedLocationFramework) {
+
+                        // Android Location framework
                         case ANDROID_LOCATION_FRAMEWORK:
                             removeGoogleLocationUpdates();
                             break;
-                        case GOOGLE_LOCATION:
+
+                        // Google Location API
+                        case GOOGLE_LOCATION_API:
                             removeAndroidLocationFrameworkUpdates();
                             break;
                     }
             }
-        } else {
+        }
+        // Notify the user that permission were not granted
+        else {
             Toast.makeText(
                     LocationActivity.this, R.string.permissions_not_granted, Toast.LENGTH_SHORT).show();
         }
     }
 
+    /**
+     * Tries to disable location updates for the selected location framework.
+     */
     private void disableLocation() {
+
+        /**
+         * If required permissions have been granted then
+         * stop receiving location updates from the selected framework.
+         */
         if (PackageManager.PERMISSION_GRANTED == ContextCompat.checkSelfPermission(this, permissionGranted)) {
-            switch (locationSystem) {
+
+            switch (selectedLocationFramework) {
+
+                // Android Location Framework
                 case ANDROID_LOCATION_FRAMEWORK:
                     removeAndroidLocationFrameworkUpdates();
                     break;
-                case GOOGLE_LOCATION:
+
+                // Google Location API
+                case GOOGLE_LOCATION_API:
                     removeGoogleLocationUpdates();
                     break;
             }
+            // Enable the flag controlling whether to display the actions to enable location udpates
             displayEnableLocation = true;
+            // Clear up the variable holding a reference to the granted permission
             permissionGranted = null;
+            // Ask the system to rebuild the options of the ActionBar
             supportInvalidateOptionsMenu();
-        } else {
+        }
+        // If not, display an activity to request that permission
+        else {
             ActivityCompat.requestPermissions(
                     this,
                     new String[]{permissionGranted},
@@ -399,10 +615,16 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
         }
     }
 
+    /**
+     * Removes the current listener to stop receiving location updates from the Android Location Framework.
+     */
     private void removeAndroidLocationFrameworkUpdates() {
-        locationManager.removeUpdates(androidframeworkLocationListener);
+        locationManager.removeUpdates(androidFrameworkLocationListener);
     }
 
+    /**
+     * Removes the current listener to stop receiving location updates from the Google Location API.
+     */
     private void removeGoogleLocationUpdates() {
         LocationServices.FusedLocationApi.removeLocationUpdates(client, googleLocationListener);
     }
@@ -420,78 +642,102 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
         return ((info != null) && info.isConnected());
     }
 
+    /**
+     * This callback is executed whenever the GoogleApiClient connects.
+     */
     @Override
     public void onConnected(@Nullable Bundle bundle) {
+        /**
+         * Ask the system to rebuild the options of the ActionBar,
+         * so it will display the options to enable location updates
+         */
         supportInvalidateOptionsMenu();
     }
 
+    /**
+     * This callback is executed whenever the GoogleApiClient gets disconnected.
+     */
     @Override
     public void onConnectionSuspended(int i) {
-
+        // No action defined, although it could try to reconnect the client
     }
 
+    /**
+     * Updates the user interface to display the new latitude and longitude.
+     * It will also start an asynchronous task to translate those coordinates into a human readable address.
+     */
     private void updateUI(Location location) {
+        // Display current longitude
         tvLongitude.setText(
                 String.format(getResources().getString(R.string.longitude),
                         String.valueOf(location.getLongitude())));
+        // Display current latitude
         tvLatitude.setText(
                 String.format(getResources().getString(R.string.longitude),
                         String.valueOf(location.getLatitude())));
-
+        // Start asynchronous task to translate coordinates into an address
         if (isConnectionAvailable()) {
             (new GeocoderAsyncTask()).execute(location.getLatitude(), location.getLongitude());
         }
     }
 
+    /**
+     * Custom LocationListener for the Android Location Framework.
+     */
     private class MyAndroidFrameworkLocationListener implements LocationListener {
 
+        /**
+         * This callback is executed whenever a new location update is received.
+         */
         @Override
         public void onLocationChanged(Location location) {
+            // Update the user interface
             updateUI(location);
         }
 
         @Override
         public void onStatusChanged(String provider, int status, Bundle extras) {
-
         }
 
         @Override
         public void onProviderEnabled(String provider) {
-
         }
 
         @Override
         public void onProviderDisabled(String provider) {
-
         }
     }
 
+    /**
+     * Custom LocationListener for the Google Location API.
+     */
     private class MyGoogleLocationListener implements com.google.android.gms.location.LocationListener {
 
+        /**
+         * This callback is executed whenever a new location update is received.
+         */
         @Override
         public void onLocationChanged(Location location) {
+            // Update the user interface
             updateUI(location);
         }
     }
 
-    public static class MyErrorDialogFragment extends SupportErrorDialogFragment {
-
-        public MyErrorDialogFragment() {
-        }
-
-        @Override
-        public Dialog onCreateDialog(Bundle savedInstanceState) {
-            int errorCode = this.getArguments().getInt("dialog_error");
-            return GoogleApiAvailability.getInstance().getErrorDialog(this.getActivity(), errorCode, REQUEST_RESOLVE_ERROR);
-        }
-    }
-
+    /**
+     * Custom asynchronous task to translate received coordinates into a human readable address.
+     */
     private class GeocoderAsyncTask extends AsyncTask<Double, Void, Address> {
 
+        /**
+         * Translates coordinates into address in a background thread.
+         */
         @Override
         protected Address doInBackground(Double... params) {
+
             try {
+                // Gets a maximum of 1 address from the Geocoder
                 List<Address> addresses = geocoder.getFromLocation(params[0], params[1], 1);
+                // Check that the Geocoder has obtained at least 1 address
                 if ((addresses != null) && (addresses.size() > 0)) {
                     return addresses.get(0);
                 }
@@ -501,24 +747,27 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
             return null;
         }
 
+        /**
+         * Update the interface of activity that launched the asynchronous task.
+         */
         @Override
         protected void onPostExecute(Address address) {
-            StringBuilder display;
+            StringBuilder display = new StringBuilder();
 
-            display = new StringBuilder();
-            if (address != null) {
-                int addressLines = address.getMaxAddressLineIndex();
-                if (addressLines != -1) {
-                    display.append(address.getAddressLine(0));
-                    for (int i = 1; i <= addressLines; i++) {
-                        display.append(", ").append(address.getAddressLine(i));
-                    }
-                } else {
-                    display.append(getResources().getString(R.string.geocoder_not_available));
+            // Check that the Geocoder got an address
+            if ((address != null) && (address.getMaxAddressLineIndex() != -1)) {
+
+                // Get the whole address (comma separated lines) in a single String
+                display.append(address.getAddressLine(0));
+                for (int i = 1; i <= address.getMaxAddressLineIndex(); i++) {
+                    display.append(", ").append(address.getAddressLine(i));
                 }
-            } else {
+            }
+            // If no address available then show a message saying so
+            else {
                 display.append(getResources().getString(R.string.geocoder_not_available));
             }
+            // Update the user interface
             tvAddress.setText(display.toString());
         }
     }
