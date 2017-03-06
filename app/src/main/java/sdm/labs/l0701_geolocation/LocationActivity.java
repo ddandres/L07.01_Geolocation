@@ -68,6 +68,7 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
     // Hold references required for Google Play Services and Google Location API
     GoogleApiClient client;
     LocationRequest request;
+
     MyGoogleLocationListener googleLocationListener;
 
     // Hold reference to a Geocoder to translate coordinates into human readable addresses

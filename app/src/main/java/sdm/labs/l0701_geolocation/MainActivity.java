@@ -11,8 +11,8 @@ import android.view.View;
 
 /**
  * Gives access to two different geolocation frameworks to get the current location of the device:
- *    Android Location Framework
- *    Google Location API
+ * Android Location Framework
+ * Google Location API
  */
 public class MainActivity extends AppCompatActivity {
 
@@ -28,7 +28,7 @@ public class MainActivity extends AppCompatActivity {
     public void buttonClicked(View view) {
         Intent intent = null;
 
-        switch(view.getId()) {
+        switch (view.getId()) {
 
             // Android Location Framework
             case R.id.bLocationFramework:
