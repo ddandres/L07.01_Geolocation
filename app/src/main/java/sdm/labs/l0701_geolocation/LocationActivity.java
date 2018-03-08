@@ -10,14 +10,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentSender;
 import android.content.pm.PackageManager;
-import android.location.Address;
-import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -32,17 +29,18 @@ import android.widget.Toast;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.common.SupportErrorDialogFragment;
-import com.google.android.gms.common.api.CommonStatusCodes;
 import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.common.api.PendingResult;
-import com.google.android.gms.common.api.ResultCallback;
+import com.google.android.gms.common.api.ResolvableApiException;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.LocationSettingsRequest;
-import com.google.android.gms.location.LocationSettingsResult;
-
-import java.io.IOException;
-import java.util.List;
+import com.google.android.gms.location.LocationSettingsResponse;
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.Task;
 
 /**
  * Displays the current location of the device and translates the latitude and longitude coordinates
@@ -67,12 +65,10 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
 
     // Hold references required for Google Play Services and Google Location API
     GoogleApiClient client;
+    FusedLocationProviderClient fusedLocationclient;
     LocationRequest request;
 
-    MyGoogleLocationListener googleLocationListener;
-
-    // Hold reference to a Geocoder to translate coordinates into human readable addresses
-    Geocoder geocoder;
+    MyGoogleLocationCallback googleLocationCallback;
 
     // Hold reference to the last permission granted
     String permissionGranted = null;
@@ -91,9 +87,9 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
         setContentView(R.layout.activity_location);
 
         // Keep references to View elements
-        tvLongitude = (TextView) findViewById(R.id.etLongitude);
-        tvLatitude = (TextView) findViewById(R.id.etLatitude);
-        tvAddress = (TextView) findViewById(R.id.tvAddress);
+        tvLongitude = findViewById(R.id.etLongitude);
+        tvLatitude = findViewById(R.id.etLatitude);
+        tvAddress = findViewById(R.id.tvAddress);
 
         // Initially display an "Unknown" longitude and latitude
         tvLongitude.setText(
@@ -121,18 +117,17 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
 
                 selectedLocationFramework = GOOGLE_LOCATION_API;
                 // Listener to receive location updates
-                googleLocationListener = new MyGoogleLocationListener();
-                // Initialize GoogleApiClient fro LocationServices API
+                googleLocationCallback = new MyGoogleLocationCallback();
+                // Initialize GoogleApiClient for LocationServices API
                 client = new GoogleApiClient.Builder(this)
                         .addConnectionCallbacks(this)
                         .addOnConnectionFailedListener(this)
                         .addApi(LocationServices.API)
                         .build();
+                fusedLocationclient = LocationServices.getFusedLocationProviderClient(this);
                 break;
         }
 
-        // Initialize the Geocoder
-        geocoder = new Geocoder(this);
     }
 
     /**
@@ -255,7 +250,7 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
     }
 
     /**
-     * Tries to enable location updates for the Android Location Framework.
+     * Tries to enable location updates for the Google Location Service.
      *
      * @param priority   Determines the priority when selecting the location provider.
      * @param permission Permission required to request updates from the selected location provider.
@@ -277,42 +272,37 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
                             .addLocationRequest(request);
 
             // Check that the request location services are available
-            PendingResult<LocationSettingsResult> results =
-                    LocationServices.SettingsApi.checkLocationSettings(client, builder.build());
+            Task<LocationSettingsResponse> results =
+                    LocationServices.getSettingsClient(this).checkLocationSettings(builder.build());
             // Callback to receive the response from the previous check
-            results.setResultCallback(new ResultCallback<LocationSettingsResult>() {
-
+            results.addOnCompleteListener(new OnCompleteListener<LocationSettingsResponse>() {
                 @Override
-                public void onResult(@NonNull LocationSettingsResult locationSettingsResult) {
+                public void onComplete(@NonNull Task<LocationSettingsResponse> task) {
+                    // Location settings are satisfied, so proceed to request location updates
+                    // Check that the requires permissions are granted
+                    checkLocationPermissions(priority, permission);
+                }
+            });
+            results.addOnFailureListener(new OnFailureListener() {
+                @Override
+                public void onFailure(@NonNull Exception e) {
+                    if (e instanceof ResolvableApiException) {
 
-                    // Determine the course of action according to the received status code
-                    switch (locationSettingsResult.getStatus().getStatusCode()) {
+                        ResolvableApiException resolvable = (ResolvableApiException) e;
 
-                        // Location settings are satisfied, so proceed to request location updates
-                        case CommonStatusCodes.SUCCESS:
-                            // Check that the requires permissions are granted
-                            checkLocationPermissions(priority, permission);
-                            break;
-
-                        // Location settings are not satisfied, but the user can fix them through a dialog
-                        case CommonStatusCodes.RESOLUTION_REQUIRED:
-                            try {
-                                // Show the user a system dialog for handling the problem
-                                locationSettingsResult.getStatus().startResolutionForResult(
-                                        LocationActivity.this, priority);
-                            } catch (IntentSender.SendIntentException e) {
-                                e.printStackTrace();
-                            }
-                            break;
-
-                        // Location settings are not satisfied and the system cannot fix them
-                        default:
-                            // Notify the user if this problem
-                            Toast.makeText(
-                                    LocationActivity.this,
-                                    R.string.location_settings_not_satisfied,
-                                    Toast.LENGTH_SHORT).show();
-                            break;
+                        try {
+                            // Show the user a system dialog for handling the problem
+                            resolvable.startResolutionForResult(
+                                    LocationActivity.this, priority);
+                        } catch (IntentSender.SendIntentException sie) {
+                            sie.printStackTrace();
+                        }
+                    } else {
+                        // Notify the user if this problem
+                        Toast.makeText(
+                                LocationActivity.this,
+                                R.string.location_settings_not_satisfied,
+                                Toast.LENGTH_SHORT).show();
                     }
                 }
             });
@@ -414,7 +404,8 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
      * Requests location updates for the Google Location API.
      */
     private void requestGoogleLocationUpdates() {
-        LocationServices.FusedLocationApi.requestLocationUpdates(client, request, googleLocationListener);
+        fusedLocationclient.requestLocationUpdates(request, googleLocationCallback, null);
+
 
         // Set to false the flag controlling whether to display the actions to enable the location udpates
         displayEnableLocation = false;
@@ -580,7 +571,7 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
      */
     private void disableLocation() {
 
-        /**
+        /*
          * If required permissions have been granted then
          * stop receiving location updates from the selected framework.
          */
@@ -627,7 +618,7 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
      * Removes the current listener to stop receiving location updates from the Google Location API.
      */
     private void removeGoogleLocationUpdates() {
-        LocationServices.FusedLocationApi.removeLocationUpdates(client, googleLocationListener);
+        fusedLocationclient.removeLocationUpdates(googleLocationCallback);
     }
 
     /**
@@ -648,7 +639,7 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
      */
     @Override
     public void onConnected(@Nullable Bundle bundle) {
-        /**
+        /*
          * Ask the system to rebuild the options of the ActionBar,
          * so it will display the options to enable location updates
          */
@@ -678,7 +669,7 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
                         String.valueOf(location.getLatitude())));
         // Start asynchronous task to translate coordinates into an address
         if (isConnectionAvailable()) {
-            (new GeocoderAsyncTask()).execute(location.getLatitude(), location.getLongitude());
+            (new GeocoderAsyncTask(this)).execute(location.getLatitude(), location.getLongitude());
         }
     }
 
@@ -709,67 +700,15 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
         }
     }
 
-    /**
-     * Custom LocationListener for the Google Location API.
-     */
-    private class MyGoogleLocationListener implements com.google.android.gms.location.LocationListener {
+    private class MyGoogleLocationCallback extends LocationCallback {
 
         /**
          * This callback is executed whenever a new location update is received.
          */
         @Override
-        public void onLocationChanged(Location location) {
+        public void onLocationResult(LocationResult locationResult) {
             // Update the user interface
-            updateUI(location);
-        }
-    }
-
-    /**
-     * Custom asynchronous task to translate received coordinates into a human readable address.
-     */
-    private class GeocoderAsyncTask extends AsyncTask<Double, Void, Address> {
-
-        /**
-         * Translates coordinates into address in a background thread.
-         */
-        @Override
-        protected Address doInBackground(Double... params) {
-
-            try {
-                // Gets a maximum of 1 address from the Geocoder
-                List<Address> addresses = geocoder.getFromLocation(params[0], params[1], 1);
-                // Check that the Geocoder has obtained at least 1 address
-                if ((addresses != null) && (addresses.size() > 0)) {
-                    return addresses.get(0);
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            return null;
-        }
-
-        /**
-         * Update the interface of activity that launched the asynchronous task.
-         */
-        @Override
-        protected void onPostExecute(Address address) {
-            StringBuilder display = new StringBuilder();
-
-            // Check that the Geocoder got an address
-            if ((address != null) && (address.getMaxAddressLineIndex() != -1)) {
-
-                // Get the whole address (comma separated lines) in a single String
-                display.append(address.getAddressLine(0));
-                for (int i = 1; i <= address.getMaxAddressLineIndex(); i++) {
-                    display.append(", ").append(address.getAddressLine(i));
-                }
-            }
-            // If no address available then show a message saying so
-            else {
-                display.append(getResources().getString(R.string.geocoder_not_available));
-            }
-            // Update the user interface
-            tvAddress.setText(display.toString());
+            updateUI(locationResult.getLocations().get(0));
         }
     }
 }
