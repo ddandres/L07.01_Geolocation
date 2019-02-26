@@ -2,7 +2,7 @@
  * Copyright (c) 2016. David de Andrés and Juan Carlos Ruiz, DISCA - UPV, Development of apps for mobile devices.
  */
 
-package sdm.labs.l0701_geolocation;
+package dadm.labs.l0701_geolocation;
 
 import android.content.Intent;
 import android.os.Bundle;

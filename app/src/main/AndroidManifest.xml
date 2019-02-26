@@ -4,7 +4,7 @@
   -->
 
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="sdm.labs.l0701_geolocation">
+    package="dadm.labs.l0701_geolocation">
 
     <!--permissions required to access location providers-->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />

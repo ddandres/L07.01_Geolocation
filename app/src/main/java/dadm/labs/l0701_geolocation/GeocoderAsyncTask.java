@@ -1,4 +1,4 @@
-package sdm.labs.l0701_geolocation;
+package dadm.labs.l0701_geolocation;
 
 import android.location.Address;
 import android.location.Geocoder;
