@@ -5,7 +5,6 @@
 package dadm.labs.l0701_geolocation;
 
 import android.Manifest;
-import android.app.Dialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentSender;
@@ -16,20 +15,16 @@ import android.location.LocationManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
-import androidx.appcompat.app.AppCompatActivity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.GoogleApiAvailability;
-import com.google.android.gms.common.SupportErrorDialogFragment;
-import com.google.android.gms.common.api.GoogleApiClient;
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+
 import com.google.android.gms.common.api.ResolvableApiException;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
@@ -47,8 +42,7 @@ import com.google.android.gms.tasks.Task;
  * into a human readable address. It manages both the Android Location Framework and the
  * Google Location API to request updates from the location provider.
  */
-public class LocationActivity extends AppCompatActivity implements GoogleApiClient.OnConnectionFailedListener,
-        GoogleApiClient.ConnectionCallbacks {
+public class LocationActivity extends AppCompatActivity {
 
     // Constants defining the location framework to be used
     public static final int ANDROID_LOCATION_FRAMEWORK = 0;
@@ -57,14 +51,12 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
 
     // Constant defining that permission were requested to remove location updates
     private static final int REMOVE_LOCATION_UPDATES_PERMISSION = 2;
-    private static final int REQUEST_RESOLVE_ERROR = 3;
 
     // Hold references required for the Android Location Framework
     LocationManager locationManager = null;
     MyAndroidFrameworkLocationListener androidFrameworkLocationListener;
 
-    // Hold references required for Google Play Services and Google Location API
-    GoogleApiClient client;
+    // Hold references required for Google Location API
     FusedLocationProviderClient fusedLocationclient;
     LocationRequest request;
 
@@ -100,12 +92,11 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
                         getResources().getString(R.string.unknown)));
 
         // Initialize elements according to the selected location framework
-        switch (getIntent().getIntExtra("location_framework", -1)) {
+        selectedLocationFramework = getIntent().getIntExtra("location_framework", -1);
+        switch (selectedLocationFramework) {
 
             // Android Location Framework
             case ANDROID_LOCATION_FRAMEWORK:
-
-                selectedLocationFramework = ANDROID_LOCATION_FRAMEWORK;
                 // Listener to receive location updates
                 androidFrameworkLocationListener = new MyAndroidFrameworkLocationListener();
                 // LocationManager giving access to the location services
@@ -114,16 +105,9 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
 
             // Google Location Framework
             case GOOGLE_LOCATION_API:
-
-                selectedLocationFramework = GOOGLE_LOCATION_API;
                 // Listener to receive location updates
                 googleLocationCallback = new MyGoogleLocationCallback();
                 // Initialize GoogleApiClient for LocationServices API
-                client = new GoogleApiClient.Builder(this)
-                        .addConnectionCallbacks(this)
-                        .addOnConnectionFailedListener(this)
-                        .addApi(LocationServices.API)
-                        .build();
                 fusedLocationclient = LocationServices.getFusedLocationProviderClient(this);
                 break;
         }
@@ -138,12 +122,10 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
 
         getMenuInflater().inflate(R.menu.menu_location, menu);
 
-        // Determine whether the GoogleApiClient is connected when using the Google Location Framework
-        boolean clientConnected = (selectedLocationFramework != GOOGLE_LOCATION_API) || client.isConnected();
         // Display the actions to enable or disable location updates
-        menu.findItem(R.id.mEnableGps).setVisible(displayEnableLocation && clientConnected);
-        menu.findItem(R.id.mEnableNetwork).setVisible(displayEnableLocation && clientConnected);
-        menu.findItem(R.id.mDisableLocation).setVisible(!displayEnableLocation && clientConnected);
+        menu.findItem(R.id.mEnableGps).setVisible(displayEnableLocation);
+        menu.findItem(R.id.mEnableNetwork).setVisible(displayEnableLocation);
+        menu.findItem(R.id.mDisableLocation).setVisible(!displayEnableLocation);
 
         return true;
     }
@@ -176,24 +158,11 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
     }
 
     /**
-     * Connects the GoogleApiClient, when using the Google Location API, whenever the activity starts.
+     * Disables the location updates (if enabled).
      */
     @Override
-    protected void onStart() {
-        super.onStart();
-        if (selectedLocationFramework == GOOGLE_LOCATION_API) {
-            client.connect();
-        }
-    }
-
-    /**
-     * Disables the location updates (if enabled) and disconnects the GoogleApiClient
-     * (when using the Google Location API), whenever the activity stops.
-     */
-    @Override
-    protected void onStop() {
-        super.onStop();
-
+    protected void onPause() {
+        super.onPause();
         // Check the location framework in use
         switch (selectedLocationFramework) {
 
@@ -209,7 +178,6 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
                 if (permissionGranted != null) {
                     disableLocation();
                 }
-                client.disconnect();
                 break;
         }
     }
@@ -257,63 +225,52 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
      */
     private void enableGoogleLocation(final int priority, final String permission) {
 
-        // Perform the whole procedure only if the GoogleCApiClient is connected
-        if (client.isConnected()) {
+        // Create a new request for updates each 10s (each 5s at most)
+        request = new LocationRequest();
+        request.setPriority(priority);
+        request.setInterval(10000);
+        request.setFastestInterval(5000);
 
-            // Create a new request for updates each 10s (each 5s at most)
-            request = new LocationRequest();
-            request.setPriority(priority);
-            request.setInterval(10000);
-            request.setFastestInterval(5000);
+        // Object specifying the type of location services the user is interested in
+        LocationSettingsRequest.Builder builder =
+                new LocationSettingsRequest.Builder()
+                        .addLocationRequest(request);
 
-            // Object specifying the type of location services the user is interested in
-            LocationSettingsRequest.Builder builder =
-                    new LocationSettingsRequest.Builder()
-                            .addLocationRequest(request);
+        // Check that the request location services are available
+        Task<LocationSettingsResponse> results =
+                LocationServices.getSettingsClient(this).checkLocationSettings(builder.build());
+        // Callback to receive the response from the previous check
+        results.addOnCompleteListener(new OnCompleteListener<LocationSettingsResponse>() {
+            @Override
+            public void onComplete(@NonNull Task<LocationSettingsResponse> task) {
+                // Location settings are satisfied, so proceed to request location updates
+                // Check that the requires permissions are granted
+                checkLocationPermissions(priority, permission);
+            }
+        });
+        results.addOnFailureListener(new OnFailureListener() {
+            @Override
+            public void onFailure(@NonNull Exception e) {
+                if (e instanceof ResolvableApiException) {
 
-            // Check that the request location services are available
-            Task<LocationSettingsResponse> results =
-                    LocationServices.getSettingsClient(this).checkLocationSettings(builder.build());
-            // Callback to receive the response from the previous check
-            results.addOnCompleteListener(new OnCompleteListener<LocationSettingsResponse>() {
-                @Override
-                public void onComplete(@NonNull Task<LocationSettingsResponse> task) {
-                    // Location settings are satisfied, so proceed to request location updates
-                    // Check that the requires permissions are granted
-                    checkLocationPermissions(priority, permission);
-                }
-            });
-            results.addOnFailureListener(new OnFailureListener() {
-                @Override
-                public void onFailure(@NonNull Exception e) {
-                    if (e instanceof ResolvableApiException) {
+                    ResolvableApiException resolvable = (ResolvableApiException) e;
 
-                        ResolvableApiException resolvable = (ResolvableApiException) e;
-
-                        try {
-                            // Show the user a system dialog for handling the problem
-                            resolvable.startResolutionForResult(
-                                    LocationActivity.this, priority);
-                        } catch (IntentSender.SendIntentException sie) {
-                            sie.printStackTrace();
-                        }
-                    } else {
-                        // Notify the user if this problem
-                        Toast.makeText(
-                                LocationActivity.this,
-                                R.string.location_settings_not_satisfied,
-                                Toast.LENGTH_SHORT).show();
+                    try {
+                        // Show the user a system dialog for handling the problem
+                        resolvable.startResolutionForResult(
+                                LocationActivity.this, priority);
+                    } catch (IntentSender.SendIntentException sie) {
+                        sie.printStackTrace();
                     }
+                } else {
+                    // Notify the user if this problem
+                    Toast.makeText(
+                            LocationActivity.this,
+                            R.string.location_settings_not_satisfied,
+                            Toast.LENGTH_SHORT).show();
                 }
-            });
-        }
-        // The GoogleApiClient is not connected, show a notification to the user
-        else {
-            Toast.makeText(
-                    LocationActivity.this,
-                    R.string.google_client_connecting,
-                    Toast.LENGTH_SHORT).show();
-        }
+            }
+        });
     }
 
     /**
@@ -389,7 +346,7 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
             // Request location updates each 5s with a minimum distance of 10m
             locationManager.requestLocationUpdates(provider, 5000, 10, androidFrameworkLocationListener);
 
-            // Set to false the flag controlling whether to display the actions to enable the location udpates
+            // Set to false the flag controlling whether to display the actions to enable the location updates
             displayEnableLocation = false;
             // Ask the system to rebuild the options of the ActionBar
             supportInvalidateOptionsMenu();
@@ -406,8 +363,7 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
     private void requestGoogleLocationUpdates() {
         fusedLocationclient.requestLocationUpdates(request, googleLocationCallback, null);
 
-
-        // Set to false the flag controlling whether to display the actions to enable the location udpates
+        // Set to false the flag controlling whether to display the actions to enable the location updates
         displayEnableLocation = false;
         // Ask the system to rebuild the options of the ActionBar
         supportInvalidateOptionsMenu();
@@ -415,26 +371,14 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
 
     /**
      * This callback is executed whenever an activity was started expecting a result.
-     * In this case it covers two different possibilities related to the used of Google Location API:
-     * The GoogleApiClient was not able to connect.
-     * The location settings did not match those requested by the user.
+     * In this case it covers the case when the location settings did not match those
+     * requested by the user.
      */
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
 
-        // Check which was request has been processed
         switch (requestCode) {
-
-            // The GoogleApiClient was not able to connect
-            case REQUEST_RESOLVE_ERROR:
-                // If the problem has been solved, retry the connection
-                if (resultCode == RESULT_OK) {
-                    if (!client.isConnecting() && !client.isConnected()) {
-                        client.connect();
-                    }
-                }
-                break;
 
             // The location settings did not match those requested by the user
             case LocationRequest.PRIORITY_HIGH_ACCURACY:
@@ -455,64 +399,6 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
                             Toast.LENGTH_SHORT).show();
                 }
                 break;
-        }
-    }
-
-    /**
-     * This callback is executed whenever the GoogleApiClient fails to connect.
-     * Try to solve the problem or show an error dialog.
-     */
-    @Override
-    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
-
-        // If the problem can be solved then start the required activity
-        if (connectionResult.hasResolution()) {
-            try {
-                connectionResult.startResolutionForResult(this, REQUEST_RESOLVE_ERROR);
-            } catch (IntentSender.SendIntentException e) {
-                e.printStackTrace();
-            }
-        }
-        // The problem cannot be directly solved, so display an error dialog
-        else {
-            showErrorDialog(connectionResult.getErrorCode());
-        }
-    }
-
-    /**
-     * Displays an error dialog to notify that the GoogleApiClient was not able to connect and
-     * no direct solution is directly available.
-     *
-     * @param errorCode Error code obtained while trying to connect.
-     */
-    private void showErrorDialog(int errorCode) {
-
-        // Custom FragmentDialog
-        MyErrorDialogFragment dialog = new MyErrorDialogFragment();
-        // Include the obtained error code as an arguments
-        Bundle args = new Bundle();
-        args.putInt("dialog_error", errorCode);
-        dialog.setArguments(args);
-        // Display the error dialog
-        dialog.show(getSupportFragmentManager(), "errorDialog");
-    }
-
-    /**
-     * Creates an error dialog fragment according to the received connection error code.
-     */
-    public static class MyErrorDialogFragment extends SupportErrorDialogFragment {
-
-        public MyErrorDialogFragment() {
-        }
-
-        @NonNull
-        @Override
-        public Dialog onCreateDialog(Bundle savedInstanceState) {
-            // Get the error code passed as argument
-            int errorCode = this.getArguments().getInt("dialog_error");
-            // Create the error frgamen dialog provided by the GoogleApiAvailability
-            return GoogleApiAvailability
-                    .getInstance().getErrorDialog(this.getActivity(), errorCode, REQUEST_RESOLVE_ERROR);
         }
     }
 
@@ -634,26 +520,6 @@ public class LocationActivity extends AppCompatActivity implements GoogleApiClie
         NetworkInfo info = manager.getActiveNetworkInfo();
         // Return true if there is network connectivity
         return ((info != null) && info.isConnected());
-    }
-
-    /**
-     * This callback is executed whenever the GoogleApiClient connects.
-     */
-    @Override
-    public void onConnected(@Nullable Bundle bundle) {
-        /*
-         * Ask the system to rebuild the options of the ActionBar,
-         * so it will display the options to enable location updates
-         */
-        supportInvalidateOptionsMenu();
-    }
-
-    /**
-     * This callback is executed whenever the GoogleApiClient gets disconnected.
-     */
-    @Override
-    public void onConnectionSuspended(int i) {
-        // No action defined, although it could try to reconnect the client
     }
 
     /**
