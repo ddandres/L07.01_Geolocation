@@ -4,8 +4,8 @@
 
 <resources>
     <string name="app_name">L07.01_Geolocation</string>
-    <string name="longitude">Longitude: %1$s</string>
-    <string name="latitude">Latitude: %1$s</string>
+    <string name="longitude">Longitude: %1$f</string>
+    <string name="latitude">Latitude: %1$f</string>
     <string name="unknown">Unknown</string>
     <string name="menu_enable_gps">Get locations wih GPS</string>
     <string name="menu_enable_network">Get locations through network</string>

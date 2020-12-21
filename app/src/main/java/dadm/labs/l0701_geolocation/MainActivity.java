@@ -6,8 +6,9 @@ package dadm.labs.l0701_geolocation;
 
 import android.content.Intent;
 import android.os.Bundle;
-import androidx.appcompat.app.AppCompatActivity;
 import android.view.View;
+
+import androidx.appcompat.app.AppCompatActivity;
 
 /**
  * Gives access to two different geolocation frameworks to get the current location of the device:
@@ -28,19 +29,15 @@ public class MainActivity extends AppCompatActivity {
     public void buttonClicked(View view) {
         Intent intent = null;
 
-        switch (view.getId()) {
-
+        final int clickedButton = view.getId();
+        if (clickedButton == R.id.bLocationFramework) {
             // Android Location Framework
-            case R.id.bLocationFramework:
-                intent = new Intent(this, LocationActivity.class);
-                intent.putExtra("location_framework", LocationActivity.ANDROID_LOCATION_FRAMEWORK);
-                break;
-
+            intent = new Intent(this, LocationActivity.class);
+            intent.putExtra("location_framework", LocationActivity.ANDROID_LOCATION_FRAMEWORK);
+        } else if (clickedButton == R.id.bGoogleLocation) {
             // Google Location API
-            case R.id.bGoogleLocation:
-                intent = new Intent(this, LocationActivity.class);
-                intent.putExtra("location_framework", LocationActivity.GOOGLE_LOCATION_API);
-                break;
+            intent = new Intent(this, LocationActivity.class);
+            intent.putExtra("location_framework", LocationActivity.GOOGLE_LOCATION_API);
         }
         // Start the activity
         startActivity(intent);

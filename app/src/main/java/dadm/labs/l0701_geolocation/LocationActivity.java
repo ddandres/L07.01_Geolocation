@@ -21,6 +21,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -33,8 +34,6 @@ import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.LocationSettingsRequest;
 import com.google.android.gms.location.LocationSettingsResponse;
-import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.Task;
 
 /**
@@ -84,12 +83,8 @@ public class LocationActivity extends AppCompatActivity {
         tvAddress = findViewById(R.id.tvAddress);
 
         // Initially display an "Unknown" longitude and latitude
-        tvLongitude.setText(
-                String.format(getResources().getString(R.string.latitude),
-                        getResources().getString(R.string.unknown)));
-        tvLatitude.setText(
-                String.format(getResources().getString(R.string.longitude),
-                        getResources().getString(R.string.unknown)));
+        tvLongitude.setText(String.format(getResources().getString(R.string.latitude), Double.NaN));
+        tvLatitude.setText(String.format(getResources().getString(R.string.longitude), Double.NaN));
 
         // Initialize elements according to the selected location framework
         selectedLocationFramework = getIntent().getIntExtra("location_framework", -1);
@@ -137,22 +132,16 @@ public class LocationActivity extends AppCompatActivity {
     public boolean onOptionsItemSelected(MenuItem item) {
 
         // Determine the action to take place according to the Id of the action selected
-        switch (item.getItemId()) {
-
+        final int selectedItem = item.getItemId();
+        if (selectedItem == R.id.mEnableGps) {
             // Enable precise/fine location
-            case R.id.mEnableGps:
-                enableLocation(LocationRequest.PRIORITY_HIGH_ACCURACY, Manifest.permission.ACCESS_FINE_LOCATION);
-                break;
-
+            enableLocation(LocationRequest.PRIORITY_HIGH_ACCURACY, Manifest.permission.ACCESS_FINE_LOCATION);
+        } else if (selectedItem == R.id.mEnableNetwork) {
             // Enable loose/coarse location
-            case R.id.mEnableNetwork:
-                enableLocation(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY, Manifest.permission.ACCESS_COARSE_LOCATION);
-                break;
-
+            enableLocation(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY, Manifest.permission.ACCESS_COARSE_LOCATION);
+        } else if (selectedItem == R.id.mDisableLocation) {
             // Disable location updates
-            case R.id.mDisableLocation:
-                disableLocation();
-                break;
+            disableLocation();
         }
         return true;
     }
@@ -240,35 +229,29 @@ public class LocationActivity extends AppCompatActivity {
         Task<LocationSettingsResponse> results =
                 LocationServices.getSettingsClient(this).checkLocationSettings(builder.build());
         // Callback to receive the response from the previous check
-        results.addOnCompleteListener(new OnCompleteListener<LocationSettingsResponse>() {
-            @Override
-            public void onComplete(@NonNull Task<LocationSettingsResponse> task) {
-                // Location settings are satisfied, so proceed to request location updates
-                // Check that the requires permissions are granted
-                checkLocationPermissions(priority, permission);
-            }
+        results.addOnCompleteListener(task -> {
+            // Location settings are satisfied, so proceed to request location updates
+            // Check that the requires permissions are granted
+            checkLocationPermissions(priority, permission);
         });
-        results.addOnFailureListener(new OnFailureListener() {
-            @Override
-            public void onFailure(@NonNull Exception e) {
-                if (e instanceof ResolvableApiException) {
+        results.addOnFailureListener(e -> {
+            if (e instanceof ResolvableApiException) {
 
-                    ResolvableApiException resolvable = (ResolvableApiException) e;
+                ResolvableApiException resolvable = (ResolvableApiException) e;
 
-                    try {
-                        // Show the user a system dialog for handling the problem
-                        resolvable.startResolutionForResult(
-                                LocationActivity.this, priority);
-                    } catch (IntentSender.SendIntentException sie) {
-                        sie.printStackTrace();
-                    }
-                } else {
-                    // Notify the user if this problem
-                    Toast.makeText(
-                            LocationActivity.this,
-                            R.string.location_settings_not_satisfied,
-                            Toast.LENGTH_SHORT).show();
+                try {
+                    // Show the user a system dialog for handling the problem
+                    resolvable.startResolutionForResult(
+                            LocationActivity.this, priority);
+                } catch (IntentSender.SendIntentException sie) {
+                    sie.printStackTrace();
                 }
+            } else {
+                // Notify the user if this problem
+                Toast.makeText(
+                        LocationActivity.this,
+                        R.string.location_settings_not_satisfied,
+                        Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -375,7 +358,7 @@ public class LocationActivity extends AppCompatActivity {
      * requested by the user.
      */
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
 
         switch (requestCode) {
@@ -528,16 +511,12 @@ public class LocationActivity extends AppCompatActivity {
      */
     private void updateUI(Location location) {
         // Display current longitude
-        tvLongitude.setText(
-                String.format(getResources().getString(R.string.longitude),
-                        String.valueOf(location.getLongitude())));
+        tvLongitude.setText(String.format(getResources().getString(R.string.longitude), location.getLongitude()));
         // Display current latitude
-        tvLatitude.setText(
-                String.format(getResources().getString(R.string.longitude),
-                        String.valueOf(location.getLatitude())));
+        tvLatitude.setText(String.format(getResources().getString(R.string.longitude), location.getLatitude()));
         // Start asynchronous task to translate coordinates into an address
         if (isConnectionAvailable()) {
-            (new GeocoderAsyncTask(this)).execute(location.getLatitude(), location.getLongitude());
+            new GeocoderThread(this, location.getLatitude(), location.getLongitude()).start();
         }
     }
 
