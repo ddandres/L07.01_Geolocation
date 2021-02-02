@@ -7,6 +7,8 @@
     <string name="longitude">Longitude: %1$f</string>
     <string name="latitude">Latitude: %1$f</string>
     <string name="unknown">Unknown</string>
+    <string name="rationale_title">Why are permissions required?</string>
+    <string name="rationale_message">In order to get information about your current location you must grant permission to the app to access information from available sensors.</string>
     <string name="menu_enable_gps">Get locations wih GPS</string>
     <string name="menu_enable_network">Get locations through network</string>
     <string name="menu_disable_location">Stop getting location updates</string>
