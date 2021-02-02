@@ -107,7 +107,6 @@ public class LocationActivity extends AppCompatActivity {
                 fusedLocationclient = LocationServices.getFusedLocationProviderClient(this);
                 break;
         }
-
     }
 
     /**
@@ -291,18 +290,16 @@ public class LocationActivity extends AppCompatActivity {
                 // Set the message to be displayed
                 builder.setMessage(R.string.rationale_message);
                 // Set a button for a positive action
-                builder.setPositiveButton(android.R.string.yes, (dialog, which) -> {
-                    ActivityCompat.requestPermissions(this, new String[]{permission}, requestCode);
-                });
+                builder.setPositiveButton(
+                        android.R.string.yes,
+                        (dialog, which) -> ActivityCompat.requestPermissions(this, new String[]{permission}, requestCode));
                 // Prevent the dialog from being cancelled
                 builder.setCancelable(false);
                 // Create the dialog
                 final AlertDialog dialog = builder.create();
                 // Show the dialog
                 dialog.show();
-                Toast.makeText(this, "Rationale", Toast.LENGTH_SHORT).show();
-            }
-            else {
+            } else {
                 ActivityCompat.requestPermissions(this, new String[]{permission}, requestCode);
             }
             return false;
@@ -415,7 +412,7 @@ public class LocationActivity extends AppCompatActivity {
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
                                            @NonNull int[] grantResults) {
-
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         // Check whether any permission has been granted
         if ((grantResults.length > 0) && (PackageManager.PERMISSION_GRANTED == grantResults[0])) {
 
