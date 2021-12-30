@@ -13,7 +13,6 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:onClick="buttonClicked"
         android:text="@string/location_framework" />
 
     <Button
@@ -21,7 +20,6 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:onClick="buttonClicked"
         android:text="@string/google_location" />
 
 </LinearLayout>

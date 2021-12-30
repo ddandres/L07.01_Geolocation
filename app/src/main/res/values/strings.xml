@@ -8,18 +8,29 @@
     <string name="latitude">Latitude: %1$f</string>
     <string name="unknown">Unknown</string>
     <string name="rationale_title">Why are permissions required?</string>
-    <string name="rationale_message">In order to get information about your current location you must grant permission to the app to access information from available sensors.</string>
-    <string name="menu_enable_gps">Get locations wih GPS</string>
+    <string name="rationale_message">
+        In order to get information about your current location you must grant permission to the app
+        to access information from available sensors.</string>
+    <string name="menu_enable_gps">Get locations with GPS</string>
     <string name="menu_enable_network">Get locations through network</string>
     <string name="menu_disable_location">Stop getting location updates</string>
     <string name="provider_not_enabled">The location provider is not enabled!</string>
-    <string name="permissions_not_granted">The permissions required to located your device have not been granted</string>
-    <string name="geocoder_not_available">Could not get the address from the location coordinates</string>
+    <string name="permissions_not_granted">
+        The permissions required to located your device have not been granted</string>
+    <string name="geocoder_not_available">
+        Could not get the address from the location coordinates</string>
     <string name="location_framework">Android Location Framework</string>
-    <string name="location_system_not_selected">Either the Android Location Framework or Google Location should be selected to locate your device</string>
+    <string name="location_system_not_selected">
+        Either the Android Location Framework or Google Location
+        should be selected to locate your device</string>
     <string name="google_location">Google Location</string>
-    <string name="google_location_not_available">Unable to use the Google Location service, switching to the Android Location Framework instead</string>
-    <string name="google_client_connecting">Google API Client is still trying to connect. Try later</string>
-    <string name="location_settings_not_satisfied">Location settings are not satisfied and the system cannot fix them</string>
-    <string name="location_settings_not_changed">Location settings have not been changed, so the device cannot be located</string>
+    <string name="google_location_not_available">
+        Unable to use the Google Location service,
+        switching to the Android Location Framework instead</string>
+    <string name="google_client_connecting">
+        Google API Client is still trying to connect. Try later</string>
+    <string name="location_settings_not_satisfied">
+        Location settings are not satisfied and the system cannot fix them</string>
+    <string name="location_settings_not_changed">
+        Location settings have not been changed, so the device cannot be located</string>
 </resources>

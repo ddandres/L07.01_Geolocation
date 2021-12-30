@@ -10,26 +10,25 @@ import android.view.View;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-/**
- * Gives access to two different geolocation frameworks to get the current location of the device:
- * Android Location Framework
- * Google Location API
- */
+// Gives access to two different geolocation frameworks to get the current location of the device:
+// Android Location Framework
+// Google Location API
 public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        View.OnClickListener listener = v -> buttonClicked(v.getId());
+        findViewById(R.id.bLocationFramework).setOnClickListener(listener);
+        findViewById(R.id.bGoogleLocation).setOnClickListener(listener);
     }
 
-    /**
-     * Starts the LocationActivity passing as parameter the location framework to be used.
-     */
-    public void buttonClicked(View view) {
+    // Starts the LocationActivity passing as parameter the location framework to be used.
+    private void buttonClicked(int clickedButton) {
         Intent intent = null;
 
-        final int clickedButton = view.getId();
         if (clickedButton == R.id.bLocationFramework) {
             // Android Location Framework
             intent = new Intent(this, LocationActivity.class);

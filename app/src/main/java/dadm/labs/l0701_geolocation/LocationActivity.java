@@ -37,11 +37,9 @@ import com.google.android.gms.location.LocationSettingsRequest;
 import com.google.android.gms.location.LocationSettingsResponse;
 import com.google.android.gms.tasks.Task;
 
-/**
- * Displays the current location of the device and translates the latitude and longitude coordinates
- * into a human readable address. It manages both the Android Location Framework and the
- * Google Location API to request updates from the location provider.
- */
+// Displays the current location of the device and translates the latitude and longitude coordinates
+// into a human readable address. It manages both the Android Location Framework and the
+// Google Location API to request updates from the location provider.
 public class LocationActivity extends AppCompatActivity {
 
     // Constants defining the location framework to be used
@@ -57,7 +55,7 @@ public class LocationActivity extends AppCompatActivity {
     MyAndroidFrameworkLocationListener androidFrameworkLocationListener;
 
     // Hold references required for Google Location API
-    FusedLocationProviderClient fusedLocationclient;
+    FusedLocationProviderClient fusedLocationClient;
     LocationRequest request;
 
     MyGoogleLocationCallback googleLocationCallback;
@@ -104,17 +102,14 @@ public class LocationActivity extends AppCompatActivity {
                 // Listener to receive location updates
                 googleLocationCallback = new MyGoogleLocationCallback();
                 // Initialize GoogleApiClient for LocationServices API
-                fusedLocationclient = LocationServices.getFusedLocationProviderClient(this);
+                fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
                 break;
         }
     }
 
-    /**
-     * This method is executed when the activity is created to populate the ActionBar with actions.
-     */
+    // This method is executed when the activity is created to populate the ActionBar with actions.
     @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-
+    public boolean onCreateOptionsMenu(@NonNull Menu menu) {
         getMenuInflater().inflate(R.menu.menu_location, menu);
 
         // Display the actions to enable or disable location updates
@@ -125,9 +120,7 @@ public class LocationActivity extends AppCompatActivity {
         return true;
     }
 
-    /**
-     * This method is executed when any action from the ActionBar is selected.
-     */
+    // This method is executed when any action from the ActionBar is selected.
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
 
@@ -146,9 +139,7 @@ public class LocationActivity extends AppCompatActivity {
         return true;
     }
 
-    /**
-     * Disables the location updates (if enabled).
-     */
+    // Disables the location updates (if enabled).
     @Override
     protected void onPause() {
         super.onPause();
@@ -171,12 +162,9 @@ public class LocationActivity extends AppCompatActivity {
         }
     }
 
-    /**
-     * Tries to enable location updates for the selected location framework.
-     *
-     * @param priority   Determines the priority when selecting the location provider.
-     * @param permission Permission required to request updates from the selected location provider.
-     */
+    // Tries to enable location updates for the selected location framework.
+    // priority   Determines the priority when selecting the location provider.
+    // permission Permission required to request updates from the selected location provider.
     private void enableLocation(int priority, String permission) {
 
         switch (selectedLocationFramework) {
@@ -194,28 +182,21 @@ public class LocationActivity extends AppCompatActivity {
 
     }
 
-
-    /**
-     * Tries to enable location updates for the Android Location Framework.
-     *
-     * @param priority   Determines the priority when selecting the location provider.
-     * @param permission Permission required to request updates from the selected location provider.
-     */
+    // Tries to enable location updates for the Android Location Framework.
+    // priority   Determines the priority when selecting the location provider.
+    // permission Permission required to request updates from the selected location provider.
     private void enableAndroidLocationFramework(int priority, String permission) {
         // Check for permissions
         checkLocationPermissions(priority, permission);
     }
 
-    /**
-     * Tries to enable location updates for the Google Location Service.
-     *
-     * @param priority   Determines the priority when selecting the location provider.
-     * @param permission Permission required to request updates from the selected location provider.
-     */
+    // Tries to enable location updates for the Google Location Service.
+    // priority   Determines the priority when selecting the location provider.
+    // permission Permission required to request updates from the selected location provider.
     private void enableGoogleLocation(final int priority, final String permission) {
 
         // Create a new request for updates each 10s (each 5s at most)
-        request = new LocationRequest();
+        request = LocationRequest.create();
         request.setPriority(priority);
         request.setInterval(10000);
         request.setFastestInterval(5000);
@@ -256,24 +237,18 @@ public class LocationActivity extends AppCompatActivity {
         });
     }
 
-    /**
-     * Checks that permissions are granted for the selected location framework.
-     *
-     * @param priority   Determines the priority when selecting the location provider.
-     * @param permission Permission required to request updates from the selected location provider.
-     */
+    // Checks that permissions are granted for the selected location framework.
+    // priority   Determines the priority when selecting the location provider.
+    // permission Permission required to request updates from the selected location provider.
     private void checkLocationPermissions(int priority, String permission) {
         if (isLocationPermissionGranted(permission, priority)) {
             locationPermissionsGranted(priority, permission);
         }
     }
 
-    /**
-     * Checks that permissions are granted for the selected location framework.
-     *
-     * @param permission  Permission required to request updates from the selected location provider.
-     * @param requestCode Code used to later identify the request in the callback.
-     */
+    // Checks that permissions are granted for the selected location framework.
+    // permission  Permission required to request updates from the selected location provider.
+    // requestCode Code used to later identify the request in the callback.
     private boolean isLocationPermissionGranted(String permission, int requestCode) {
 
         // Determine whether the user has granted that particular permission
@@ -306,12 +281,9 @@ public class LocationActivity extends AppCompatActivity {
         }
     }
 
-    /**
-     * Requests location updates for the selected location framework.
-     *
-     * @param priority   Determines the priority when selecting the location provider.
-     * @param permission Permission required to request updates from the selected location provider.
-     */
+    // Requests location updates for the selected location framework.
+    // priority   Determines the priority when selecting the location provider.
+    // permission Permission required to request updates from the selected location provider.
     private void locationPermissionsGranted(int priority, String permission) {
 
         // Keep reference of the granted permission
@@ -331,11 +303,8 @@ public class LocationActivity extends AppCompatActivity {
         }
     }
 
-    /**
-     * Requests location updates for the Android Location Framework.
-     *
-     * @param priority Determines the priority when selecting the location provider.
-     */
+    // Requests location updates for the Android Location Framework.
+    // priority Determines the priority when selecting the location provider.
     private void requestAndroidLocationFrameworkUpdates(int priority) {
 
         // Determine the required location provider according to the requested priority
@@ -359,11 +328,9 @@ public class LocationActivity extends AppCompatActivity {
         }
     }
 
-    /**
-     * Requests location updates for the Google Location API.
-     */
+    // Requests location updates for the Google Location API.
     private void requestGoogleLocationUpdates() {
-        fusedLocationclient.requestLocationUpdates(request, googleLocationCallback, null);
+        fusedLocationClient.requestLocationUpdates(request, googleLocationCallback, null);
 
         // Set to false the flag controlling whether to display the actions to enable the location updates
         displayEnableLocation = false;
@@ -371,11 +338,9 @@ public class LocationActivity extends AppCompatActivity {
         supportInvalidateOptionsMenu();
     }
 
-    /**
-     * This callback is executed whenever an activity was started expecting a result.
-     * In this case it covers the case when the location settings did not match those
-     * requested by the user.
-     */
+    // This callback is executed whenever an activity was started expecting a result.
+    // In this case it covers the case when the location settings did not match those
+    // requested by the user.
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -404,11 +369,9 @@ public class LocationActivity extends AppCompatActivity {
         }
     }
 
-    /**
-     * This callback is executed whenever the user has been asked to grant permissions.
-     * In this case it will deal with permission to request fine/coarse location updates,
-     * and to remove any previous requested location update.
-     */
+    // This callback is executed whenever the user has been asked to grant permissions.
+    // In this case it will deal with permission to request fine/coarse location updates,
+    // and to remove any previous requested location update.
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
                                            @NonNull int[] grantResults) {
@@ -456,15 +419,11 @@ public class LocationActivity extends AppCompatActivity {
         }
     }
 
-    /**
-     * Tries to disable location updates for the selected location framework.
-     */
+    // Tries to disable location updates for the selected location framework.
     private void disableLocation() {
 
-        /*
-         * If required permissions have been granted then
-         * stop receiving location updates from the selected framework.
-         */
+        // If required permissions have been granted then
+        // stop receiving location updates from the selected framework.
         if (PackageManager.PERMISSION_GRANTED == ContextCompat.checkSelfPermission(this, permissionGranted)) {
 
             switch (selectedLocationFramework) {
@@ -497,23 +456,17 @@ public class LocationActivity extends AppCompatActivity {
         }
     }
 
-    /**
-     * Removes the current listener to stop receiving location updates from the Android Location Framework.
-     */
+    // Removes the current listener to stop receiving location updates from the Android Location Framework.
     private void removeAndroidLocationFrameworkUpdates() {
         locationManager.removeUpdates(androidFrameworkLocationListener);
     }
 
-    /**
-     * Removes the current listener to stop receiving location updates from the Google Location API.
-     */
+    // Removes the current listener to stop receiving location updates from the Google Location API.
     private void removeGoogleLocationUpdates() {
-        fusedLocationclient.removeLocationUpdates(googleLocationCallback);
+        fusedLocationClient.removeLocationUpdates(googleLocationCallback);
     }
 
-    /**
-     * Check whether Internet connectivity is available.
-     */
+    // Check whether Internet connectivity is available.
     private boolean isConnectionAvailable() {
 
         // Get a reference to the ConnectivityManager
@@ -524,10 +477,8 @@ public class LocationActivity extends AppCompatActivity {
         return ((info != null) && info.isConnected());
     }
 
-    /**
-     * Updates the user interface to display the new latitude and longitude.
-     * It will also start an asynchronous task to translate those coordinates into a human readable address.
-     */
+    // Updates the user interface to display the new latitude and longitude.
+    // It will also start an asynchronous task to translate those coordinates into a human readable address.
     private void updateUI(Location location) {
         // Display current longitude
         tvLongitude.setText(String.format(getResources().getString(R.string.longitude), location.getLongitude()));
@@ -539,14 +490,10 @@ public class LocationActivity extends AppCompatActivity {
         }
     }
 
-    /**
-     * Custom LocationListener for the Android Location Framework.
-     */
+    // Custom LocationListener for the Android Location Framework.
     private class MyAndroidFrameworkLocationListener implements LocationListener {
 
-        /**
-         * This callback is executed whenever a new location update is received.
-         */
+        // This callback is executed whenever a new location update is received.
         @Override
         public void onLocationChanged(Location location) {
             // Update the user interface
@@ -568,9 +515,7 @@ public class LocationActivity extends AppCompatActivity {
 
     private class MyGoogleLocationCallback extends LocationCallback {
 
-        /**
-         * This callback is executed whenever a new location update is received.
-         */
+        // This callback is executed whenever a new location update is received.
         @Override
         public void onLocationResult(LocationResult locationResult) {
             // Update the user interface
